@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# To include hidden files
+shopt -s nullglob dotglob
+
+ko=$(find /lib/modules/ -type f -name "wireguar1d.ko")
+
+echo $ko
+
+if [ $ko  ]
+then
+    echo "Wireguard Kernel Module found"
+    echo "Setting Up WireGuard"
+    sudo pacman -S wireguard-tools jq
+
+    wg genkey | tee privatekey | wg pubkey > publickey
+    
+    echo "Getting Azire VPN script, please sign up at https://www.azirevpn.com/manager/auth/register to get Config"
+    curl -LO https://www.azirevpn.com/dl/azirevpn-wg.sh
+
+    chmod +x ./azirevpn-wg.sh
+
+    ./azirevpn-wg.sh
+
+    echo "Wireguard successfully setup"
+else
+    echo "Wireguard Kernel Module not found"
+    echo "Make sure you have wireguard-dkms, dkms and appropriate kernel headers package"
+    echo "Then rerun the script"
+fi

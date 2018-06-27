@@ -1,0 +1,8 @@
+#! /bin/bash
+
+version=1.0
+next_version=$(echo "$version + 0.1" | bc -l)
+
+sed -i "s/$version/$next_version/g" "$0"
+
+echo $version
