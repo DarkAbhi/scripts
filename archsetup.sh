@@ -6,7 +6,7 @@
 sudo pacman -Syyu
 
 #Install basic/essential GNOME Desktop Environment & few packages
-sudo pacman -S gdm gnome-shell nautilus gnome-terminal gnome-tweak-tool gnome-control-center xdg-user-dirs networkmanager gnome-keyring network-manager-applet gnome-backgrounds evince adobe-source-code-pro-fonts ttf-dejavu zsh vlc neofetch linux-headers kdms wireguard-tools lolcat git 
+sudo pacman -S gdm gnome-shell nautilus gnome-terminal gnome-tweak-tool gnome-control-center xdg-user-dirs networkmanager gnome-keyring network-manager-applet gnome-backgrounds evince adobe-source-code-pro-fonts ttf-dejavu zsh vlc neofetch linux-headers dkms wireguard-tools lolcat git 
 
 # Enable GDM to start
 systemctl enable gdm
