@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+#
+# shellcheck disable=SC1.27
+#
+# Copyright (C) 2018 Abhishek AN (DarkAbhi)
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Color Code & Formatting Script
+bold=$(tput bold)
+normal=$(tput sgr0)
+black='\e[0;30m'        # Black
+red='\e[0;31m'          # Red
+green='\e[0;32m'        # Green
+yellow='\e[0;33m'       # Yellow
+blue='\e[0;34m'         # Blue
+purple='\e[0;35m'       # Purple
+cyan='\e[0;36m'         # Cyan
+white='\e[0;37m'        # White
+lmagenta='\e[95m'
+nocol='\033[0m'         # Default
+
+###############
+#	      #
+#  VARIABLES  #
+#             #
+###############
+
+START=$(date +%s)
+THREADS=$(nproc --all)
+KERNEL_DIR=$PWD
+ARCH="arm64"
+CCACHE="$(command -v ccache)"
+IMAGE=$KERNEL_DIR/out/arch/arm64/boot/Image.gz-dtb
+ANYKERNEL_DIR=/home/$USER/AnyKernel2/asus
+EXPORT_DIR=/home/$USER/flashablezips/asus/
+FINAL_IMAGE=zImage
+BASE_VER="RawWork"
+KERNEL_VER=1.2
+FINAL_ZIP=$BASE_VER-v$KERNEL_VER.zip
+file=$PWD/build-kernel
+MAKE="make -j${THREADS} O=out ARCH=${ARCH}"
+
+# GET PARAMETERS
+while [[ $# -gt 1 ]]
+do
+	key="$1"
+	case $key in
+		# Use Clang for compiling the kernel
+		-c|--clang)
+		CLANG=true
+		shift 
+		;;
+
+		# Assign GCC Version
+		"-gt"|"--gcc-toolchain")
+		TOOLCHAIN="$2" 
+		shift
+		;;
+	esac
+done
+
+################
+#	       #
+#   DEFAULTS   #
+#              #
+################
+
+if [[ -z ${TOOLCHAIN} ]]; then
+	echo
+	echo -e "$blue${bold}************************************************************"
+	echo "${bold}GCC TOOLCHAIN NOT SPECIFIED USING AOSP aarch64-linux-android-4.9${normal}"
+	echo -e "$blue${bold}************************************************************$nocol"
+	export CROSS_COMPILE=$HOME/toolchains/aosp-gcc/bin/aarch64-linux-android-
+fi
+
+# CHECK IF CLANG IS TO BE USED
+if [[ "${CLANG}" == "true" ]]; then
+	echo
+	echo -e "$lmagenta${bold}***********************************"
+	echo "USING RawWork CLANG 8 ${normal}"
+	echo -e "$lmagenta${bold}***********************************$nocol"
+	export CLANG_TRIPLE="aarch64-linux-gnu-"
+	export CC="$HOME/toolchains/RawWork-clang/bin/clang"
+	KBUILD_COMPILER_STRING=$(${CC} --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
+fi
+
+# ASSIGN TOOLCHAIN PATH AFTER SPECIFYING
+if [[ "${TOOLCHAIN}" == "aosp" ]]; then
+	echo
+	echo -e "$green${bold}CROSS COMPILE set to GCC 4.9$normal"
+	echo
+	export CROSS_COMPILE=$HOME/toolchains/aosp-gcc/bin/aarch64-linux-android-
+elif [[ "${TOOLCHAIN}" == 7 ]]; then
+	echo
+	echo -e "$green${bold}CROSS COMPILE set to GCC 7$normal"
+	echo
+	export CROSS_COMPILE=$HOME/toolchains/gcc7/bin/aarch64-linux-
+elif [[ "${TOOLCHAIN}" == 8 ]]; then
+	echo
+	echo -e "$green${bold}CROSS COMPILE set to GCC 8$normal"
+	echo
+	export CROSS_COMPILE=$HOME/toolchains/gcc8/bin/aarch64-linux-
+elif [[ "${TOOLCHAIN}" == 9 ]]; then
+	echo
+	echo -e "$green${bold}CROSS COMPILE set to GCC 9$normal"
+	echo
+	export CROSS_COMPILE=$HOME/toolchains/GCC9/bin/aarch64-linux-gnu-
+fi
+
+if [ -d out ]; then
+echo -e "$red${bold}*****************************************************"
+echo "        Removing out Directory & Creating out          "
+echo -e "*****************************************************${normal}$nocol"
+#rm -rf out && mkdir out
+fi
+
+if [ -e "$ANYKERNEL_DIR/zImage" ]; then
+	rm -rf $ANYKERNEL_DIR/$FINAL_IMAGE
+fi
+export CCACHE KBUILD_COMPILER_STRING THREADS ARCH
+
+echo -e "$cyan${bold}***********************************************"
+echo "          Compiling KERNEL!!        "
+echo -e "***********************************************${normal}$nocol"
+$MAKE rawwork_defconfig
+$MAKE
+
+# Error out if Image.gz-dtb not found
+if ! [ -a $IMAGE ];
+then
+	echo -e "$red${bold} Kernel Compilation failed! Fix the errors! $nocol"
+	exit 1
+else
+	echo -e "$green${bold}***********************************************"
+	echo "          Copying Image.gz--dtb        "
+	echo -e "***********************************************${normal}$nocol"
+	mv $IMAGE $ANYKERNEL_DIR/$FINAL_IMAGE
+fi
+
+echo -e "$purple${bold}***********************************************"
+echo "          Making Flashable Zip        "
+echo -e "***********************************************${normal}$nocol"
+
+cd $ANYKERNEL_DIR
+zip -r9 $FINAL_ZIP *
+
+echo -e "$green${bold}***********************************************"
+echo "          Copying Final ZIP to flashable files folder        "
+echo -e "***********************************************${normal}$nocol"
+
+mv $FINAL_ZIP $EXPORT_DIR
+
+if [ -e "$ANYKERNEL_DIR/zImage" ]; then
+	echo -e "$green***********************************************"
+	echo "		zImage exists    "
+	next_kernel_version=$(echo "$KERNEL_VER + 0.1" | bc -l)
+	sed -i "s/$KERNEL_VER/$next_kernel_version/g" "$file"
+	echo -e "$green***********************************************"
+	echo "Next Big Kernel Version Will Be${bold} $next_kernel_version${normal}"
+fi
+
+#BUILD TIME
+BUILD_END=$(date +"%s")
+DIFF=$(($BUILD_END - $START))
+echo -e "$yellow${bold}Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.${normal}$nocol"
