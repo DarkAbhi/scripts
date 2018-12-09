@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 #
-# shellcheck disable=SC1.27
-#
 # Copyright (C) 2018 Abhishek AN (DarkAbhi)
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -36,7 +34,7 @@ ANYKERNEL_DIR=/home/$USER/AnyKernel2/asus
 EXPORT_DIR=/home/$USER/flashablezips/asus/
 FINAL_IMAGE=zImage
 BASE_VER="RawWork"
-KERNEL_VER=1.2
+KERNEL_VER=1.0
 FINAL_ZIP=$BASE_VER-v$KERNEL_VER.zip
 file=$PWD/build-kernel
 MAKE="make -j${THREADS} O=out ARCH=${ARCH}"
@@ -126,10 +124,19 @@ echo -e "***********************************************${normal}$nocol"
 $MAKE rawwork_defconfig
 $MAKE
 
+function caltime() {
+#BUILD TIME
+BUILD_END=$(date +"%s")
+DIFF=$(($BUILD_END - $START))
+echo -e "$yellow${bold}Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.${normal}$nocol"
+}
+
 # Error out if Image.gz-dtb not found
 if ! [ -a $IMAGE ];
 then
 	echo -e "$red${bold} Kernel Compilation failed! Fix the errors! $nocol"
+	echo
+	caltime
 	exit 1
 else
 	echo -e "$green${bold}***********************************************"
@@ -160,7 +167,6 @@ if [ -e "$ANYKERNEL_DIR/zImage" ]; then
 	echo "Next Big Kernel Version Will Be${bold} $next_kernel_version${normal}"
 fi
 
-#BUILD TIME
-BUILD_END=$(date +"%s")
-DIFF=$(($BUILD_END - $START))
-echo -e "$yellow${bold}Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.${normal}$nocol"
+caltime
+
+# END OF SCRIPT
