@@ -236,7 +236,7 @@ function git_sync() {(
     if [[ ${FOLDER} = "clang" ]]; then
         git fetch origin "${BRANCH}"-no-rebase
         add_remote upstream "${LLVM_ORG}$(basename "${FOLDER}")"
-        git fetch upstream
+        git fetch upstream || die "There was an error fetching updates for ${FOLDER}!"
         if [[ -n ${STOCK} ]]; then
             git reset --hard upstream/"${BRANCH}"
             [[ ${VERSION} -eq ${STABLE_VERSION} ]] && git cherry-pick 69ad28caf8 || git cherry-pick f50a8a1cf3
