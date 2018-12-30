@@ -234,6 +234,7 @@ function git_sync() {(
 
     # For Clang, we need to add an upstream remote and rebase on it
     if [[ ${FOLDER} = "clang" ]]; then
+        git fetch origin "${BRANCH}"-no-rebase
         add_remote upstream "${LLVM_ORG}$(basename "${FOLDER}")"
         git fetch upstream
         if [[ -n ${STOCK} ]]; then
