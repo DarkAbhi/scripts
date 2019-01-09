@@ -34,7 +34,7 @@ ANYKERNEL_DIR=/home/$USER/AnyKernel2/asus
 EXPORT_DIR=/home/$USER/flashablezips/asus/
 FINAL_IMAGE=zImage
 BASE_VER="RawWork"
-KERNEL_VER=1.0
+KERNEL_VER=4.7
 FINAL_ZIP=$BASE_VER-v$KERNEL_VER.zip
 file=$PWD/build-kernel
 MAKE="make -j${THREADS} O=out ARCH=${ARCH}"
@@ -98,7 +98,7 @@ elif [[ "${TOOLCHAIN}" == 8 ]]; then
 	echo
 	echo -e "$green${bold}CROSS COMPILE set to GCC 8$normal"
 	echo
-	export CROSS_COMPILE=$HOME/toolchains/gcc8/bin/aarch64-linux-
+	export CROSS_COMPILE=$HOME/toolchains/gcc8/bin/aarch64-linux-gnu-
 elif [[ "${TOOLCHAIN}" == 9 ]]; then
 	echo
 	echo -e "$green${bold}CROSS COMPILE set to GCC 9$normal"
@@ -116,11 +116,13 @@ fi
 if [ -e "$ANYKERNEL_DIR/zImage" ]; then
 	rm -rf $ANYKERNEL_DIR/$FINAL_IMAGE
 fi
+
 export CCACHE KBUILD_COMPILER_STRING THREADS ARCH
 
 echo -e "$cyan${bold}***********************************************"
 echo "          Compiling KERNEL!!        "
 echo -e "***********************************************${normal}$nocol"
+
 $MAKE rawwork_defconfig
 $MAKE
 
@@ -166,6 +168,14 @@ if [ -e "$ANYKERNEL_DIR/zImage" ]; then
 	echo -e "$green***********************************************"
 	echo "Next Big Kernel Version Will Be${bold} $next_kernel_version${normal}"
 fi
+
+# Upload Final Kernel ZIP if exists
+#cd $EXPORT_DIR
+#if [ -a $FINAL_ZIP ]; then
+#	rsync -e ssh $FINAL_ZIP darkabhi@frs.sourceforge.net:/home/frs/project/rawwork/RawWork-X00TD/
+#else
+#	echo "Final Kernel Zip: $FINAL_ZIP NOT FOUND"
+#fi
 
 caltime
 
