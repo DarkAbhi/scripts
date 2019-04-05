@@ -19,7 +19,7 @@ lmagenta='\e[95m'
 nocol='\033[0m'         # Default
 
 ###############
-#	      #
+#			  #
 #  VARIABLES  #
 #             #
 ###############
@@ -34,7 +34,7 @@ ANYKERNEL_DIR=/home/$USER/AnyKernel2/asus
 EXPORT_DIR=/home/$USER/flashablezips/asus/
 FINAL_IMAGE=zImage
 BASE_VER="RawWork"
-KERNEL_VER=4.7
+KERNEL_VER=1.0
 FINAL_ZIP=$BASE_VER-v$KERNEL_VER.zip
 file=$PWD/build-kernel
 MAKE="make -j${THREADS} O=out ARCH=${ARCH}"
@@ -59,7 +59,7 @@ do
 done
 
 ################
-#	       #
+#			   #
 #   DEFAULTS   #
 #              #
 ################
