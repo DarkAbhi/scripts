@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# Color Code & Formatting Script
+# Color Code & Formatting 
 bold=$(tput bold)
 normal=$(tput sgr0)
 black='\e[0;30m'        # Black
@@ -27,7 +27,6 @@ nocol='\033[0m'         # Default
 START=$(date +%s)
 THREADS=$(nproc --all)
 KERNEL_DIR=$PWD
-ARCH="arm64"
 CCACHE="$(command -v ccache)"
 IMAGE=$KERNEL_DIR/out/arch/arm64/boot/Image.gz-dtb
 ANYKERNEL_DIR=/home/$USER/AnyKernel2/asus
@@ -37,26 +36,46 @@ BASE_VER="RawWork"
 KERNEL_VER=1.0
 FINAL_ZIP=$BASE_VER-v$KERNEL_VER.zip
 file=$PWD/build-kernel
-MAKE="make -j${THREADS} O=out ARCH=${ARCH}"
 
-# GET PARAMETERS
-while [[ $# -gt 1 ]]
-do
-	key="$1"
-	case $key in
-		# Use Clang for compiling the kernel
-		-c|--clang)
-		CLANG=true
-		shift 
-		;;
+function help_menu() {
+    echo
+    echo "${bold}OVERVIEW:${normal} Build a gcc toolchain"
+    echo
+    echo "${bold}USAGE:${normal} ${0} <options>"
+    echo
+    echo "${bold}EXAMPLE:${normal} ${0} -a arm64 -s linaro -v 7"
+    echo
+    echo "${bold}REQUIRED PARAMETERS:${normal}"
+    echo "  -a      | --arch:        		  Possible values: arm, arm64. This is the target architecture. Defaults to arm64."
+    echo "  -gt     | --gcc-toolchain 		  Possible values: aosp(i.e GCC 4.9), 7,8 or 9."
+    echo "  -ct     | --clang-toolchain 	  Possible values: 8 or 9."
+    echo "  -d      | --defconfig:			  Input defconfig to be used for building. Defaults to rawwork_defconfig."
+    echo "  -gt-32  | --gcc-32-bit-toolchain  Possible values: aosp(i.e GCC 4.9), 7,8 or 9."
+    echo "  -c      | --clang			 	  Builds with clang."
+    echo
+}
 
-		# Assign GCC Version
-		"-gt"|"--gcc-toolchain")
-		TOOLCHAIN="$2" 
-		shift
-		;;
-	esac
+# Parse parameters
+function parse_parameters() {
+    while [[ ${#} -ge 1 ]]; do
+        case "${1}" in
+            # REQUIRED FLAGS
+            "-a"|"--arch") shift && ARCH=${1} ;;
+            "-gt"|"--gcc-toolchain") shift && GCC_TOOLCHAIN=${1} ;;
+            "-ct"|"--clang-toolchain") shift && CLANG_TOOLCHAIN=${1} ;;
+			"-d"|"--defconfig") shift && DEFCONFIG=${1} ;;
+			"-gt-32"|"--gcc-32-bit-toolchain") shift && GCC_32_BIT_TOOLCHAIN=${1} ;;
+			"-c"|"--clang") shift && CLANG=true ;;
+
+            # HELP!
+            "-h"|"--help") help_menu; exit ;;
+        esac
+
+        shift
 done
+}
+
+function assign_values() {
 
 ################
 #			   #
@@ -64,48 +83,56 @@ done
 #              #
 ################
 
-if [[ -z ${TOOLCHAIN} ]]; then
+#[[ -z ${ARCH} ]] && ARCH=arm64
+
+[[ -z ${DEFCONFIG} ]] && DEFCONFIG="rawwork_defconfig"
+
+MAKE="make -j${THREADS} O=out ARCH=${ARCH}"
+
+if [[ -z ${GCC_TOOLCHAIN} ]]; then
 	echo
-	echo -e "$blue${bold}************************************************************"
+	echo -e "$blue${bold}****************************************************************"
 	echo "${bold}GCC TOOLCHAIN NOT SPECIFIED USING AOSP aarch64-linux-android-4.9${normal}"
-	echo -e "$blue${bold}************************************************************$nocol"
-	export CROSS_COMPILE=$HOME/toolchains/aosp-gcc/bin/aarch64-linux-android-
+	echo -e "$blue${bold}****************************************************************$nocol"
+	export CROSS_COMPILE=$HOME/toolchains/GCC/aosp-gcc/bin/aarch64-linux-android-
 fi
 
 # CHECK IF CLANG IS TO BE USED
 if [[ "${CLANG}" == "true" ]]; then
 	echo
 	echo -e "$lmagenta${bold}***********************************"
-	echo "USING RawWork CLANG 8 ${normal}"
+	echo "	USING CLANG 9 ${normal}"
 	echo -e "$lmagenta${bold}***********************************$nocol"
 	export CLANG_TRIPLE="aarch64-linux-gnu-"
-	export CC="$HOME/toolchains/RawWork-clang/bin/clang"
+	export CC="$HOME/toolchains/CLANG/clang-9/bin/clang"
 	KBUILD_COMPILER_STRING=$(${CC} --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
 fi
 
 # ASSIGN TOOLCHAIN PATH AFTER SPECIFYING
-if [[ "${TOOLCHAIN}" == "aosp" ]]; then
+if [[ "${GCC_TOOLCHAIN}" == "aosp" ]]; then
 	echo
-	echo -e "$green${bold}CROSS COMPILE set to GCC 4.9$normal"
+	echo -e "$green${bold}GCC version: aarch64-linux-android-gcc (GCC) 4.9.x 20150123 (prerelease)$normal"
 	echo
-	export CROSS_COMPILE=$HOME/toolchains/aosp-gcc/bin/aarch64-linux-android-
-elif [[ "${TOOLCHAIN}" == 7 ]]; then
+	export CROSS_COMPILE=$HOME/toolchains/GCC/aosp-gcc/bin/aarch64-linux-android-
+elif [[ "${GCC_TOOLCHAIN}" == 7 ]]; then
 	echo
-	echo -e "$green${bold}CROSS COMPILE set to GCC 7$normal"
+	echo -e "$green${bold}GCC version: aarch64-linux-gnu-gcc (GCC) 7.4.1 20190406$normal"
 	echo
-	export CROSS_COMPILE=$HOME/toolchains/gcc7/bin/aarch64-linux-
-elif [[ "${TOOLCHAIN}" == 8 ]]; then
+	export CROSS_COMPILE=$HOME/toolchains/GCC/gcc-7/bin/aarch64-linux-gnu-
+elif [[ "${GCC_TOOLCHAIN}" == 8 ]]; then
 	echo
-	echo -e "$green${bold}CROSS COMPILE set to GCC 8$normal"
+	echo -e "$green${bold}GCC version: aarch64-linux-gnu-gcc (GCC) 8.3.1 20190406$normal"
 	echo
-	export CROSS_COMPILE=$HOME/toolchains/gcc8/bin/aarch64-linux-gnu-
-elif [[ "${TOOLCHAIN}" == 9 ]]; then
+	export CROSS_COMPILE=$HOME/toolchains/GCC/gcc-8/bin/aarch64-linux-gnu-
+elif [[ "${GCC_TOOLCHAIN}" == 9 ]]; then
 	echo
-	echo -e "$green${bold}CROSS COMPILE set to GCC 9$normal"
+	echo -e "$green${bold}GCC version: aarch64-linux-gnu-gcc (GCC) 9.0.1 20190406 (experimental)$normal"
 	echo
-	export CROSS_COMPILE=$HOME/toolchains/GCC9/bin/aarch64-linux-gnu-
+	export CROSS_COMPILE=$HOME/toolchains/GCC/gcc-9/bin/aarch64-linux-gnu-
 fi
+}
 
+function clean() {
 if [ -d out ]; then
 echo -e "$red${bold}*****************************************************"
 echo "        Removing out Directory & Creating out          "
@@ -116,15 +143,18 @@ fi
 if [ -e "$ANYKERNEL_DIR/zImage" ]; then
 	rm -rf $ANYKERNEL_DIR/$FINAL_IMAGE
 fi
+}
 
+function build() {
 export CCACHE KBUILD_COMPILER_STRING THREADS ARCH
 
 echo -e "$cyan${bold}***********************************************"
-echo "          Compiling KERNEL!!        "
+echo "          	Compiling KERNEL!!        "
 echo -e "***********************************************${normal}$nocol"
 
-$MAKE rawwork_defconfig
+$MAKE $DEFCONFIG
 $MAKE
+}
 
 function caltime() {
 #BUILD TIME
@@ -133,9 +163,11 @@ DIFF=$(($BUILD_END - $START))
 echo -e "$yellow${bold}Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.${normal}$nocol"
 }
 
+function results() {
 # Error out if Image.gz-dtb not found
 if ! [ -a $IMAGE ];
 then
+	echo
 	echo -e "$red${bold} Kernel Compilation failed! Fix the errors! $nocol"
 	echo
 	caltime
@@ -155,7 +187,7 @@ cd $ANYKERNEL_DIR
 zip -r9 $FINAL_ZIP *
 
 echo -e "$green${bold}***********************************************"
-echo "          Copying Final ZIP to flashable files folder        "
+echo "          Copying Final ZIP - $FINAL_ZIP to flashable files folder        "
 echo -e "***********************************************${normal}$nocol"
 
 mv $FINAL_ZIP $EXPORT_DIR
@@ -168,15 +200,24 @@ if [ -e "$ANYKERNEL_DIR/zImage" ]; then
 	echo -e "$green***********************************************"
 	echo "Next Big Kernel Version Will Be${bold} $next_kernel_version${normal}"
 fi
+}
 
+function upload_finalzip(){
 # Upload Final Kernel ZIP if exists
-#cd $EXPORT_DIR
-#if [ -a $FINAL_ZIP ]; then
-#	rsync -e ssh $FINAL_ZIP darkabhi@frs.sourceforge.net:/home/frs/project/rawwork/RawWork-X00TD/
-#else
-#	echo "Final Kernel Zip: $FINAL_ZIP NOT FOUND"
-#fi
+cd $EXPORT_DIR
+if [ -a $FINAL_ZIP ]; then
+	rsync -e ssh $FINAL_ZIP darkabhi@frs.sourceforge.net:/home/frs/project/rawwork/RawWork-X00TD/
+else
+	echo "Final Kernel Zip: $FINAL_ZIP NOT FOUND"
+fi
+}
 
+parse_parameters "${@}"
+assign_values
+clean
+build
+results
+#upload_finalzip
 caltime
 
 # END OF SCRIPT
