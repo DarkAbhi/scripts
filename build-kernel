@@ -24,8 +24,8 @@ nocol='\033[0m'         # Default
 #             #
 ###############
 
-START=$(date +%s)
-THREADS=$(nproc --all)
+COUNT=$(nproc --all)
+THREADS="$((COUNT * 2))"
 KERNEL_DIR=$PWD
 CCACHE="$(command -v ccache)"
 IMAGE=$KERNEL_DIR/out/arch/arm64/boot/Image.gz-dtb
@@ -33,8 +33,9 @@ ANYKERNEL_DIR=/home/$USER/AnyKernel2/asus
 EXPORT_DIR=/home/$USER/flashablezips/asus/
 FINAL_IMAGE=zImage
 BASE_VER="RawWork"
-KERNEL_VER=1.0
+KERNEL_VER=1.2
 FINAL_ZIP=$BASE_VER-v$KERNEL_VER.zip
+BUILD_NUMBER=$(date +%H%M%S)
 file=$PWD/build-kernel
 
 function help_menu() {
@@ -101,7 +102,7 @@ fi
 if [[ "${CLANG}" == "true" ]]; then
 	echo
 	echo -e "$lmagenta${bold}***********************************"
-	echo "	USING CLANG 9 ${normal}"
+	echo "	USING clang version 9.0.3 ${normal}"
 	echo -e "$lmagenta${bold}***********************************$nocol"
 	export CLANG_TRIPLE="aarch64-linux-gnu-"
 	export CC="$HOME/toolchains/CLANG/clang-9/bin/clang"
@@ -111,24 +112,16 @@ fi
 # ASSIGN TOOLCHAIN PATH AFTER SPECIFYING
 if [[ "${GCC_TOOLCHAIN}" == "aosp" ]]; then
 	echo
-	echo -e "$green${bold}GCC version: aarch64-linux-android-gcc (GCC) 4.9.x 20150123 (prerelease)$normal"
+	echo -e "$green${bold}GCC version: aarch64-linux-android-gcc (GCC) 4.9.x 201.2123 (prerelease)$normal"
 	echo
 	export CROSS_COMPILE=$HOME/toolchains/GCC/aosp-gcc/bin/aarch64-linux-android-
 elif [[ "${GCC_TOOLCHAIN}" == 7 ]]; then
 	echo
-	echo -e "$green${bold}GCC version: aarch64-linux-gnu-gcc (GCC) 7.4.1 20190406$normal"
+	echo -e "$green${bold}GCC version: aarch64-linux-gnu-gcc (GCC) 7.4.1 201.2014$normal"
 	echo
 	export CROSS_COMPILE=$HOME/toolchains/GCC/gcc-7/bin/aarch64-linux-gnu-
-elif [[ "${GCC_TOOLCHAIN}" == 8 ]]; then
-	echo
-	echo -e "$green${bold}GCC version: aarch64-linux-gnu-gcc (GCC) 8.3.1 20190406$normal"
-	echo
-	export CROSS_COMPILE=$HOME/toolchains/GCC/gcc-8/bin/aarch64-linux-gnu-
-elif [[ "${GCC_TOOLCHAIN}" == 9 ]]; then
-	echo
-	echo -e "$green${bold}GCC version: aarch64-linux-gnu-gcc (GCC) 9.0.1 20190406 (experimental)$normal"
-	echo
-	export CROSS_COMPILE=$HOME/toolchains/GCC/gcc-9/bin/aarch64-linux-gnu-
+	export CROSS_COMPILE_ARM32=$HOME/toolchains/GCC/gcc-7-arm/bin/arm-linux-gnueabi-
+	export STRIP=$HOME/toolchains/GCC/gcc-7/bin/arm-linux-gnueabi-strip
 fi
 }
 
@@ -145,6 +138,15 @@ if [ -e "$ANYKERNEL_DIR/zImage" ]; then
 fi
 }
 
+function notifybuild() {
+	curl -s -X POST https://api.telegram.org/bot${BOT_API_KEY}/sendMessage -d text=" Kernel: <code>RawWork Kernel</code>
+	Device: <code>Asus Zenfone Max Pro M1</code>
+	Branch: <code>$(git rev-parse --abbrev-ref HEAD)</code>
+	Build Number: <code>r${BUILD_NUMBER}</code>
+	Latest Commit: <code>$(git log --pretty=format:'%h : %s' -1)</code>
+	<i>Build started on Arch Macine...</i>" -d chat_id=${CI_CHANNEL_ID} -d parse_mode=HTML
+}
+
 function build() {
 export CCACHE KBUILD_COMPILER_STRING THREADS ARCH
 
@@ -156,13 +158,6 @@ $MAKE $DEFCONFIG
 $MAKE
 }
 
-function caltime() {
-#BUILD TIME
-BUILD_END=$(date +"%s")
-DIFF=$(($BUILD_END - $START))
-echo -e "$yellow${bold}Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.${normal}$nocol"
-}
-
 function results() {
 # Error out if Image.gz-dtb not found
 if ! [ -a $IMAGE ];
@@ -170,7 +165,7 @@ then
 	echo
 	echo -e "$red${bold} Kernel Compilation failed! Fix the errors! $nocol"
 	echo
-	caltime
+	echo -e "$yellow${bold}Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.${normal}$nocol"
 	exit 1
 else
 	echo -e "$green${bold}***********************************************"
@@ -203,21 +198,26 @@ fi
 }
 
 function upload_finalzip(){
-# Upload Final Kernel ZIP if exists
 cd $EXPORT_DIR
 if [ -a $FINAL_ZIP ]; then
-	rsync -e ssh $FINAL_ZIP darkabhi@frs.sourceforge.net:/home/frs/project/rawwork/RawWork-X00TD/
+	curl -s -X POST https://api.telegram.org/bot${BOT_API_KEY}/sendMessage -d text="Build compiled successfully in $((DIFF / 60)) minute(s) and $((DIFF % 60)) seconds!" -d chat_id=${CI_CHANNEL_ID} -d parse_mode=HTML
+	#curl -F chat_id="${CI_CHANNEL_ID}" -F document=@"$(pwd)/${FINAL_ZIP}" https://api.telegram.org/bot${BOT_API_KEY}/sendDocument
 else
 	echo "Final Kernel Zip: $FINAL_ZIP NOT FOUND"
+	curl -s -X POST https://api.telegram.org/bot${BOT_API_KEY}/sendMessage -d text="Build throwing errors. FIX THEM NOOB!" -d chat_id=${CI_CHANNEL_ID}
 fi
 }
 
+notifybuild
 parse_parameters "${@}"
 assign_values
 clean
+START=$(date +%s)
 build
+BUILD_END=$(date +"%s")
+DIFF=$(($BUILD_END - $START))
 results
-#upload_finalzip
-caltime
+upload_finalzip
+echo -e "$yellow${bold}Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.${normal}$nocol"
 
 # END OF SCRIPT
