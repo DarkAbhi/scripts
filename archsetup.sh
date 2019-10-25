@@ -18,6 +18,6 @@ systemctl enable NetworkManager
 
 git config --global user.name "Abhishek AN"
 git config --global user.email "darkabhi1520@gmail.com"
-git config --global credential.helper cache
+git config --global credential.helper "cache --timeout=7200"
 
 echo "All Done"
